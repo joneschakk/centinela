@@ -40,6 +40,14 @@ func authenticateHandler(w http.ResponseWriter, r *http.Request) {
 
 	if username == "u" && password == "p" {
 		w.Header().Set("X-Centinela-Redirect-To", target)
+
+		http.SetCookie(w,
+			&http.Cookie{
+				Name:   "centinela_auth_token",
+				Domain: target,
+				Value:  "foo",
+			})
+
 		w.WriteHeader(http.StatusOK)
 		fmt.Fprintf(w, "Authenticated: %s", target)
 		return
@@ -74,6 +82,8 @@ func authenticatedCheckHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	authFor := r.Header.Get("X-Auth-For")
 	authToken := r.Header.Get("X-Auth-Token")
+	// a, _ := r.Cookie("")
+	// a.Value()
 	if authFor == "" {
 		w.WriteHeader(400)
 		fmt.Fprintf(w, "Authentication target is empty")
