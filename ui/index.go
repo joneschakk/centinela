@@ -1,11 +1,24 @@
+package ui
+
+const IndexHTML = `
+
 <div class="form">
   <input type="text" class="text-box" id="in-username" placeholder="Username" />
   <input type="password" class="text-box" id="in-password" placeholder="Password" />
   <input type="submit" class="btn-submit" value="Login" onclick="submit()" />
-  <a href="">No credentials?</a>
+  <label id="message-label" class="messaage" style="hidden:true"></label>
+  <!-- <a href="">No credentials?</a> -->
 </div>
 
 <script>
+  var target = "{{AuthTarget}}"
+
+  function showMessage(msg) {
+    var lbl = document.getElementById('message-label')
+    lbl.innerText = msg
+    lbl.hidden = false
+  }
+
   function submit() {
     var username = document.getElementById("in-username").value
     var password = document.getElementById("in-password").value
@@ -15,21 +28,27 @@
     // console.log(data);
     fetch("/authenticate", {
       method: 'post',
-      body:  "username=" + username + "&password=" + password,
+      body: "target=" + target + "&username=" + username + "&password=" + password,
       headers: {
-        "Content-Type": "application/x-www-form-urlencoded",
-        'X-Auth-For' : 'http://www.google.com'
+        "Content-Type": "application/x-www-form-urlencoded"
       }
     }).then(
       resp => {
         console.log("resp", resp)
         if (resp.ok) {
-          alert("auth")
-        }
-        if(resp.redirected){
-          console.log("redirecting to ", resp.url);
-          
-          window.location.replace(resp.url)
+          alert("authenticated")
+          var redirectTo = resp.headers.get('X-Centinela-Redirect-To');
+          if (redirectTo) {
+            console.log("redirecting to ", redirectTo);
+            if (!redirectTo.startsWith('http')) {
+              redirectTo = "http://" + redirectTo
+            }
+            window.location.replace(redirectTo)
+          }
+        } else if (resp.status == 400) {
+          resp.text().then(msg => showMessage(msg))
+        } else {
+          console.warn("unknown reply", resp)
         }
       },
       err => {
@@ -105,6 +124,17 @@
     background: #09cca6
   }
 
+  #message-label {
+    text-align: center;
+    font-family: Arial;
+    color: red;
+    display: block;
+    margin: 15px auto;
+    text-decoration: none;
+    transition: all 0.3s ease;
+    font-size: 12px;
+  }
+
   a {
     text-align: center;
     font-family: Arial;
@@ -139,3 +169,4 @@
     color: gray;
   }
 </style>
+`

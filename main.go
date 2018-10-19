@@ -4,9 +4,12 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"os"
+	"strings"
 
-	_ "./statik"
-	"github.com/rakyll/statik/fs"
+	"./ui"
+	// _ "./statik"
+	// "github.com/rakyll/statik/fs"
 )
 
 func authenticateHandler(w http.ResponseWriter, r *http.Request) {
@@ -24,26 +27,45 @@ func authenticateHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	authFor := r.Header.Get("X-Auth-For")
-	if authFor == "" {
-		w.WriteHeader(406) // TODO change
-		fmt.Fprintf(w, "Authentication target is empty")
-		return
-	}
 	username := r.FormValue("username")
 	password := r.FormValue("password")
-	fmt.Println("authenticating ..... | " + username + ":" + password)
-
-	if username == "u" && password == "p" {
-		http.Redirect(w, r, authFor, http.StatusTemporaryRedirect)
+	target := r.FormValue("target")
+	fmt.Println("authenticating '" + target + "' with " + "(" + username + ":" + password + ")")
+	if target == "" {
+		w.WriteHeader(406) // TODO change
+		fmt.Fprintf(w, "Authentication target is empty")
+		fmt.Fprintf(os.Stderr, "Authentication target is empty")
 		return
 	}
+
+	if username == "u" && password == "p" {
+		w.Header().Set("X-Centinela-Redirect-To", target)
+		w.WriteHeader(http.StatusOK)
+		fmt.Fprintf(w, "Authenticated: %s", target)
+		return
+	}
+
 	w.WriteHeader(http.StatusBadRequest)
 	fmt.Fprintf(w, "Authentication failed")
+	fmt.Fprintf(os.Stderr, "Authentication failed")
 }
 
 func loginPageHandler(w http.ResponseWriter, r *http.Request) {
-	fmt.Fprintf(w, "Hi there, I love %s!", r.URL.Path[1:])
+	// statikFS, err := fs.New()
+	// if err != nil {
+	// 	log.Fatal(err)
+	// }
+	// indexFile, err := statikFS.Open("index.html")
+	target := r.URL.Query().Get("target")
+	if target == "" {
+		w.WriteHeader(400)
+		w.Write([]byte("no target specified"))
+		return
+	}
+	w.WriteHeader(200)
+	w.Write([]byte(
+		strings.Replace(
+			ui.IndexHTML, "{{AuthTarget}}", target, 1)))
 }
 
 func authenticatedCheckHandler(w http.ResponseWriter, r *http.Request) {
@@ -55,15 +77,18 @@ func authenticatedCheckHandler(w http.ResponseWriter, r *http.Request) {
 	if authFor == "" {
 		w.WriteHeader(400)
 		fmt.Fprintf(w, "Authentication target is empty")
+		fmt.Fprintf(os.Stderr, "Authentication target is empty")
 		return
 	}
 	if authToken == "foo" {
 		w.WriteHeader(200)
 		fmt.Fprintf(w, "Authorized")
+		fmt.Fprintf(os.Stderr, "Authorized")
 		return
 	}
 	w.WriteHeader(401)
 	fmt.Fprintf(w, "Not authorized")
+	fmt.Fprintf(os.Stderr, "Not authorized")
 }
 
 func main() {
@@ -71,13 +96,8 @@ func main() {
 
 	http.HandleFunc("/is-authenticated", authenticatedCheckHandler)
 
-	statikFS, err := fs.New()
-
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	http.Handle("/login/", http.StripPrefix("/login/", http.FileServer(statikFS)))
+	http.HandleFunc("/login", loginPageHandler)
+	// http.Handle("/login/", http.StripPrefix("/login/", http.FileServer(statikFS)))
 
 	fmt.Println("starting centinela server...")
 	log.Fatal(http.ListenAndServe(":6969", nil))
