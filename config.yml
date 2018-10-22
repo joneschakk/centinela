@@ -1,0 +1,25 @@
+ver: "1.1"
+server:
+  host: 0.0.0.0
+  port: 6969
+
+users:
+  - name: user1
+    password: password1
+    roles :
+      - admin
+      - reader
+      
+  - name: user2
+    password: password2
+    roles :
+      - reader
+
+targets:
+  mesos:
+      enabled: true
+      roles: [reader]
+
+  marathon:
+      enabled: true
+      roles: [admin]

@@ -12,6 +12,7 @@ const IndexHTML = `
 
 <script>
   var target = "{{AuthTarget}}"
+  var targetUrl = "{{TargetUrl}}"
 
   function showMessage(msg) {
     var lbl = document.getElementById('message-label')
@@ -26,9 +27,10 @@ const IndexHTML = `
     // data['username'] = username
     // data['password'] = password
     // console.log(data);
+    domain = new URL(targetUrl).host
     fetch("/authenticate", {
       method: 'post',
-      body: "target=" + target + "&username=" + username + "&password=" + password,
+      body: "target=" + target + "&domain=" + domain + "&username=" + username + "&password=" + password,
       headers: {
         "Content-Type": "application/x-www-form-urlencoded"
       }
@@ -37,11 +39,11 @@ const IndexHTML = `
         console.log("resp", resp)
         if (resp.ok) {
           alert("authenticated")
-          var redirectTo = resp.headers.get('X-Centinela-Redirect-To');
-          if (redirectTo) {
-            console.log("redirecting to ", redirectTo);
-            if (!redirectTo.startsWith('http')) {
-              redirectTo = "http://" + redirectTo
+          // var redirectTo = resp.headers.get('X-Centinela-Redirect-To');
+          if (targetUrl) {
+            console.log("redirecting to ", targetUrl);
+            if (!targetUrl.startsWith('http')) {
+              targetUrl = "http://" + targetUrl
             }
             window.location.replace(redirectTo)
           }

@@ -12,6 +12,21 @@ import (
 	// "github.com/rakyll/statik/fs"
 )
 
+var c Configuration
+
+func ValidateLoginCredentials(username string, password string, target string) bool {
+	if t, ok := c.Targets[target]; ok {
+		for i := range c.Users {
+			if c.Users[i].Name == username &&
+				c.Users[i].Password == password &&
+				c.Users[i].Roles.HasAnyRole(t.Roles) {
+				return true
+			}
+		}
+	}
+	return false
+}
+
 func authenticateHandler(w http.ResponseWriter, r *http.Request) {
 	r.ParseForm()
 
@@ -30,6 +45,7 @@ func authenticateHandler(w http.ResponseWriter, r *http.Request) {
 	username := r.FormValue("username")
 	password := r.FormValue("password")
 	target := r.FormValue("target")
+	domain := r.FormValue("domain")
 	fmt.Println("authenticating '" + target + "' with " + "(" + username + ":" + password + ")")
 	if target == "" {
 		w.WriteHeader(406) // TODO change
@@ -38,14 +54,13 @@ func authenticateHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if username == "u" && password == "p" {
-		w.Header().Set("X-Centinela-Redirect-To", target)
-
+	if ValidateLoginCredentials(username, password, target) {
+		// w.Header().Set("X-Centinela-Redirect-To", target)
 		http.SetCookie(w,
 			&http.Cookie{
 				Name:   "centinela_auth_token",
-				Domain: target,
-				Value:  "foo",
+				Domain: domain,
+				Value:  GenerateToken(username, target),
 			})
 
 		w.WriteHeader(http.StatusOK)
@@ -53,7 +68,7 @@ func authenticateHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	w.WriteHeader(http.StatusBadRequest)
+	w.WriteHeader(http.StatusUnauthorized)
 	fmt.Fprintf(w, "Authentication failed")
 	fmt.Fprintf(os.Stderr, "Authentication failed")
 }
@@ -65,6 +80,7 @@ func loginPageHandler(w http.ResponseWriter, r *http.Request) {
 	// }
 	// indexFile, err := statikFS.Open("index.html")
 	target := r.URL.Query().Get("target")
+	targetUrl := r.URL.Query().Get("url")
 	if target == "" {
 		w.WriteHeader(400)
 		w.Write([]byte("no target specified"))
@@ -73,7 +89,8 @@ func loginPageHandler(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(200)
 	w.Write([]byte(
 		strings.Replace(
-			ui.IndexHTML, "{{AuthTarget}}", target, 1)))
+			strings.Replace(ui.IndexHTML, "{{AuthTarget}}", target, 1),
+			"{{TargetUrl}}", targetUrl, 1)))
 }
 
 func authenticatedCheckHandler(w http.ResponseWriter, r *http.Request) {
@@ -90,7 +107,7 @@ func authenticatedCheckHandler(w http.ResponseWriter, r *http.Request) {
 		fmt.Fprintf(os.Stderr, "Authentication target is empty")
 		return
 	}
-	if authToken == "foo" {
+	if isValidToken(authToken) {
 		w.WriteHeader(200)
 		fmt.Fprintf(w, "Authorized")
 		fmt.Fprintf(os.Stderr, "Authorized")
@@ -102,6 +119,9 @@ func authenticatedCheckHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func main() {
+	c.Load("config.yml")
+	// c.PrintConf()
+	// usermap = *c.GetUserMap()
 	http.HandleFunc("/authenticate", authenticateHandler)
 
 	http.HandleFunc("/is-authenticated", authenticatedCheckHandler)
@@ -109,6 +129,6 @@ func main() {
 	http.HandleFunc("/login", loginPageHandler)
 	// http.Handle("/login/", http.StripPrefix("/login/", http.FileServer(statikFS)))
 
-	fmt.Println("starting centinela server...")
-	log.Fatal(http.ListenAndServe(":6969", nil))
+	fmt.Println("starting centinela server @ ", c.GetServerAddress())
+	log.Fatal(http.ListenAndServe(c.GetServerAddress(), nil))
 }
