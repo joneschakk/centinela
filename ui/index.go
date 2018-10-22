@@ -45,7 +45,7 @@ const IndexHTML = `
             if (!targetUrl.startsWith('http')) {
               targetUrl = "http://" + targetUrl
             }
-            window.location.replace(redirectTo)
+            window.location.replace(targetUrl)
           }
         } else if (resp.status == 400) {
           resp.text().then(msg => showMessage(msg))

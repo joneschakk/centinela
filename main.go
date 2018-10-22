@@ -17,6 +17,7 @@ var c Configuration
 func ValidateLoginCredentials(username string, password string, target string) bool {
 	if t, ok := c.Targets[target]; ok {
 		for i := range c.Users {
+
 			if c.Users[i].Name == username &&
 				c.Users[i].Password == password &&
 				c.Users[i].Roles.HasAnyRole(t.Roles) {
@@ -107,11 +108,13 @@ func authenticatedCheckHandler(w http.ResponseWriter, r *http.Request) {
 		fmt.Fprintf(os.Stderr, "Authentication target is empty")
 		return
 	}
-	if isValidToken(authToken) {
-		w.WriteHeader(200)
-		fmt.Fprintf(w, "Authorized")
-		fmt.Fprintf(os.Stderr, "Authorized")
-		return
+	if authToken != "" {
+		if isValidToken(authToken) {
+			w.WriteHeader(200)
+			fmt.Fprintf(w, "Authorized")
+			fmt.Fprintf(os.Stderr, "Authorized")
+			return
+		}
 	}
 	w.WriteHeader(401)
 	fmt.Fprintf(w, "Not authorized")
