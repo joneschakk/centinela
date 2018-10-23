@@ -23,3 +23,6 @@ targets:
   marathon:
       enabled: true
       roles: [admin]
+  chronos:
+       enabled: true
+       roles: [admin]
